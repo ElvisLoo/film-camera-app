@@ -154,10 +154,18 @@
   .cam-ovl .ovl-main{font-family:ui-monospace,monospace;font-size:27px;font-weight:700;line-height:1}
   .cam-ovl .ovl-main small{font-size:12px;font-weight:600;opacity:.85;margin-left:1px}
   .cam-ovl .ovl-sub{font-size:10.5px;opacity:.92;margin-top:5px;white-space:nowrap}
+  .cam-ovl .ovl-fc{font-size:10px;opacity:.8;margin-top:3px;white-space:nowrap}
   .bar{height:14px;border-radius:8px;background:#F1EEE8;overflow:hidden;margin:4px 0 2px;border:1px solid var(--line)}
   .bar>i{display:block;height:100%;width:0%;border-radius:8px;
     background:linear-gradient(90deg,#3B82D6,#1FA37A,#E9803C);transition:width .15s}
   .cam-tip{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+  .hist{width:100%;height:56px;border-radius:10px;background:#15171c;margin:8px 0 2px;display:block}
+  .meter-rec{margin-top:8px}
+  .rec-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}
+  .rec-row{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:7px 9px;font-size:12.5px}
+  .rec-f{font-weight:700;color:var(--ink)}
+  .rec-s{color:var(--blue);font-family:ui-monospace,monospace;font-weight:600}
+  .rec-hint{font-size:12px;color:var(--muted);padding:4px 0}
 
   /* ---- bottom nav ---- */
   nav{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
@@ -233,11 +241,16 @@
       <div class="tool">
         <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（手机实测）</h3></div>
         <div class="cam-wrap"><video id="cam" autoplay playsinline muted></video><div class="ph" id="camPh">点下方启动摄像头</div>
-          <div class="cam-ovl" id="camOvl" style="display:none"><div class="ovl-main"><span id="ovlLux">--</span><small>lx</small></div><div class="ovl-sub"><span id="ovlPct">--</span>% · <span id="ovlVerdict">待机</span></div></div>
+          <div class="cam-ovl" id="camOvl" style="display:none"><div class="ovl-main"><span id="ovlLux">--</span><small>LUX</small></div><div class="ovl-fc"><span id="ovlFc">--</span> fc</div><div class="ovl-sub"><span id="ovlPct">--</span>% · <span id="ovlVerdict">待机</span></div></div>
         </div>
         <div class="bar"><i id="lumBar"></i></div>
         <div class="res"><span class="lab">环境亮度</span> <span class="big" id="lumVal" style="font-size:18px">--</span></div>
-        <div class="cam-tip" id="camTip">测反射光、粗略参考。负片宽容大，偏 1-2 级仍可用；反转片请另备测光表。</div>
+        <canvas class="hist" id="hist" width="300" height="56"></canvas>
+        <div class="meter-rec">
+          <div class="res"><span class="lab">EV @ ISO <span id="recIso">400</span></span> <span class="big blue" id="evVal">--</span></div>
+          <div class="rec-grid" id="recGrid"><div class="rec-hint">启动摄像头后按实测光线给推荐光圈 / 快门</div></div>
+        </div>
+        <div class="cam-tip" id="camTip">测反射光、粗略参考。负片宽容大，偏 1-2 级仍可用；反转片请另备测光表。EV / 推荐值受手机自动曝光影响，绝对值仅供参考，建议用阳光16交叉验证。</div>
         <div class="btn primary" id="camBtn">启动摄像头</div>
       </div>
 
@@ -384,6 +397,8 @@ document.querySelectorAll('.iso-chip').forEach(function(c){
     c.classList.add('on');
     ISO = parseInt(c.getAttribute('data-iso'),10);
     updateSun();
+    document.getElementById('recIso').textContent = ISO;
+    renderRec(lastEvIso);
   });
 });
 
@@ -452,8 +467,17 @@ function loop(){
       document.getElementById('lumVal').textContent=pct+'%';
       document.getElementById('ovlPct').textContent=pct;
       // 估算照度（仅供参考，非校准 lux；手机自动曝光，绝对值不可靠）
-      var lux=Math.round(Math.pow(pct/50,2.2)*150);
+      var lux=Math.round(50000*Math.pow(pct/100,4));
       document.getElementById('ovlLux').textContent=lux;
+      // FC（英尺-烛光）：1 fc ≈ 10.764 lux
+      document.getElementById('ovlFc').textContent=Math.round(lux/10.764);
+      // EV：基于粗略 lux 估算（仅供参考）
+      var ev100=Math.log2(lux/2.5);
+      var evIso=ev100-Math.log2(ISO/100);
+      lastEvIso=evIso;
+      document.getElementById('evVal').textContent=isFinite(evIso)?evIso.toFixed(1):'--';
+      renderRec(evIso);
+      drawHist(d,300,56);
       var tip='',verdict='';
       if(pct<25){tip='偏暗：开大光圈 / 放慢快门 / 用闪光。';verdict='偏暗';}
       else if(pct>80){tip='偏亮：收小光圈，防过曝（负片可偏亮半级）。';verdict='偏亮';}
@@ -464,6 +488,55 @@ function loop(){
     requestAnimationFrame(step);
   })();
 }
+
+// 最近一次 EV（供 ISO 切换时重渲染推荐表）
+var lastEvIso=NaN;
+var histCv=document.getElementById('hist');
+var histCtx=histCv?histCv.getContext('2d'):null;
+// 把秒数格式化为最接近的相机标准快门档
+function fmtShut(t){
+  var denoms=[8000,4000,2000,1000,500,250,125,60,30,15,8,4,2];
+  if(t>=1){
+    var slow=[30,15,8,4,2,1],best=Math.min(slow[0],t);
+    for(var i=0;i<slow.length;i++){ if(Math.abs(slow[i]-t)<=Math.abs(best-t)) best=slow[i]; }
+    return (Math.round(best*10)/10)+'s';
+  }
+  var x=1/t,bd=denoms[0];
+  for(var j=0;j<denoms.length;j++){ if(Math.abs(denoms[j]-x)<Math.abs(bd-x)) bd=denoms[j]; }
+  return '1/'+bd;
+}
+// 基于 EV@ISO 渲染推荐光圈/快门（互易律自动补偿）
+function renderRec(evIso){
+  var grid=document.getElementById('recGrid');
+  if(!grid)return;
+  if(!isFinite(evIso)){
+    grid.innerHTML='<div class="rec-hint">启动摄像头后按实测光线给推荐光圈 / 快门</div>';
+    return;
+  }
+  var fs=[2.8,4,5.6,8,11,16],html='';
+  for(var i=0;i<fs.length;i++){
+    var f=fs[i],t=f*f/Math.pow(2,evIso);
+    html+='<div class="rec-row"><span class="rec-f">f/'+f+'</span><span class="rec-s">'+fmtShut(t)+'</span></div>';
+  }
+  grid.innerHTML=html;
+}
+// RGB 直方图（红/绿/蓝三通道分布，用于看偏色与过曝）
+function drawHist(d,w,h){
+  if(!histCtx)return;
+  var bins=32,rh=new Array(bins).fill(0),gh=new Array(bins).fill(0),bh=new Array(bins).fill(0);
+  for(var i=0;i<d.length;i+=4){ rh[d[i]>>3]++; gh[d[i+1]>>3]++; bh[d[i+2]>>3]++; }
+  var max=1;
+  for(var b=0;b<bins;b++){ if(rh[b]>max)max=rh[b]; if(gh[b]>max)max=gh[b]; if(bh[b]>max)max=bh[b]; }
+  var bw=w/bins;
+  histCtx.clearRect(0,0,w,h);
+  for(var k=0;k<bins;k++){
+    var r2=rh[k]/max*h,g2=gh[k]/max*h,b2=bh[k]/max*h;
+    histCtx.fillStyle='rgba(255,90,90,.55)'; histCtx.fillRect(k*bw,h-r2,bw-0.6,r2);
+    histCtx.fillStyle='rgba(90,220,130,.55)'; histCtx.fillRect(k*bw,h-g2,bw-0.6,g2);
+    histCtx.fillStyle='rgba(90,150,255,.55)'; histCtx.fillRect(k*bw,h-b2,bw-0.6,b2);
+  }
+}
+renderRec(lastEvIso);
 
 setHeroQuote();
 renderRef('bw');
