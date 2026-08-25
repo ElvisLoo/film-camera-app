@@ -239,7 +239,20 @@
       </div>
 
       <div class="tool">
-        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（手机实测）</h3></div>
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><h3>传感器测光（真实环境光）</h3></div>
+        <div class="cam-tip" id="sensorStatus">正在尝试连接环境光传感器…</div>
+        <div class="res"><span class="lab">环境照度</span> <span class="big" id="sensorLux">--</span> <span class="lab">LUX</span> &nbsp; <span class="lab">FC</span> <span class="big" id="sensorFc">--</span></div>
+        <div class="res"><span class="lab">EV @ ISO <span id="sensorIso">400</span></span> <span class="big blue" id="sensorEv">--</span></div>
+        <div class="meter-rec">
+          <div class="rec-grid" id="sensorRecGrid"><div class="rec-hint">传感器就绪后按实测光线给推荐光圈 / 快门</div></div>
+        </div>
+        <div class="cam-tip">灰卡校准偏移：<input type="range" id="evOffset" min="-3" max="3" step="0.1" value="0" style="width:58%;vertical-align:middle"> <b id="evOffsetVal">0.0</b> EV
+          <div style="margin-top:5px;font-size:11px;opacity:.85">与 Light Meter 对比：把两部设备放同一光源，调此偏移使 EV 一致即可对齐。</div></div>
+        <div class="cam-tip" id="sensorTip">读数来自手机硬件 ALS（环境光传感器），与 Light Meter 同源、非摄像头。EV 用入射光公式 <b>log₂(LUX/2.5)</b> 计算（photon 同款数学 + 灰卡偏移）；测光时屏幕尽量朝下 / 遮住传感器，避免屏幕光干扰。</div>
+      </div>
+
+      <div class="tool">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（反射光·参考）</h3></div>
         <div class="cam-wrap"><video id="cam" autoplay playsinline muted></video><div class="ph" id="camPh">点下方启动摄像头</div>
           <div class="cam-ovl" id="camOvl" style="display:none"><div class="ovl-main"><span id="ovlLux">--</span><small>LUX</small></div><div class="ovl-fc"><span id="ovlFc">--</span> fc</div><div class="ovl-sub"><span id="ovlPct">--</span>% · <span id="ovlVerdict">待机</span></div></div>
         </div>
@@ -321,6 +334,8 @@ function setHeroQuote(){
 }
 
 var ISO = 400;
+var evOffset = 0;          // 灰卡校准偏移（EV 单位），对齐 Light Meter 用
+var lastSensorLux = NaN;   // 传感器最近一次真实 lux
 var STD = [8,15,30,60,125,250,500,1000,2000,4000];
 function near(v){var b=STD[0],d=1e9;STD.forEach(function(s){if(Math.abs(s-v)<d){d=Math.abs(s-v);b=s}});return b}
 function fnum(f){return 'f/'+f}
@@ -398,7 +413,9 @@ document.querySelectorAll('.iso-chip').forEach(function(c){
     ISO = parseInt(c.getAttribute('data-iso'),10);
     updateSun();
     document.getElementById('recIso').textContent = ISO;
+    document.getElementById('sensorIso').textContent = ISO;
     renderRec(lastEvIso);
+    recomputeSensor();
   });
 });
 
@@ -471,9 +488,9 @@ function loop(){
       document.getElementById('ovlLux').textContent=lux;
       // FC（英尺-烛光）：1 fc ≈ 10.764 lux
       document.getElementById('ovlFc').textContent=Math.round(lux/10.764);
-      // EV：基于粗略 lux 估算（仅供参考）
+      // EV：基于粗略 lux 估算（仅供参考）；高 ISO 应给更快快门，故 +log2(ISO/100)
       var ev100=Math.log2(lux/2.5);
-      var evIso=ev100-Math.log2(ISO/100);
+      var evIso=ev100+Math.log2(ISO/100);
       lastEvIso=evIso;
       document.getElementById('evVal').textContent=isFinite(evIso)?evIso.toFixed(1):'--';
       renderRec(evIso);
@@ -505,20 +522,55 @@ function fmtShut(t){
   for(var j=0;j<denoms.length;j++){ if(Math.abs(denoms[j]-x)<Math.abs(bd-x)) bd=denoms[j]; }
   return '1/'+bd;
 }
-// 基于 EV@ISO 渲染推荐光圈/快门（互易律自动补偿）
-function renderRec(evIso){
-  var grid=document.getElementById('recGrid');
-  if(!grid)return;
+// 基于 EV@ISO 生成推荐光圈/快门（互易律自动补偿）的 HTML
+function buildRecHTML(evIso){
   if(!isFinite(evIso)){
-    grid.innerHTML='<div class="rec-hint">启动摄像头后按实测光线给推荐光圈 / 快门</div>';
-    return;
+    return '<div class="rec-hint">传感器/摄像头就绪后按实测光线给推荐光圈 / 快门</div>';
   }
   var fs=[2.8,4,5.6,8,11,16],html='';
   for(var i=0;i<fs.length;i++){
     var f=fs[i],t=f*f/Math.pow(2,evIso);
     html+='<div class="rec-row"><span class="rec-f">f/'+f+'</span><span class="rec-s">'+fmtShut(t)+'</span></div>';
   }
-  grid.innerHTML=html;
+  return html;
+}
+function renderRec(evIso){ var g=document.getElementById('recGrid'); if(g)g.innerHTML=buildRecHTML(evIso); }
+function renderSensorRec(evIso){ var g=document.getElementById('sensorRecGrid'); if(g)g.innerHTML=buildRecHTML(evIso); }
+
+// 传感器读数 → 用 photon 同款入射光 EV 数学重算（含灰卡偏移）
+function recomputeSensor(){
+  if(!isFinite(lastSensorLux) || lastSensorLux<=0){ return; }
+  var ev100 = Math.log2(lastSensorLux/2.5) + evOffset;   // EV@ISO100 + 灰卡偏移
+  var evIso = ev100 + Math.log2(ISO/100);                // 换算到所选 ISO
+  document.getElementById('sensorEv').textContent = evIso.toFixed(1);
+  renderSensorRec(evIso);
+}
+
+// 环境光传感器（AmbientLightSensor，读手机硬件 ALS，与 Light Meter 同源）
+function startSensor(){
+  var status=document.getElementById('sensorStatus');
+  if(!('AmbientLightSensor' in window)){
+    status.textContent='本浏览器不支持环境光传感器（iOS Safari / 微信 / QQ 常见）。请用安卓 Chrome 打开，或改用下方摄像头测光。';
+    return;
+  }
+  try{
+    var s=new AmbientLightSensor({frequency:3});
+    s.addEventListener('reading',function(){
+      var lux=s.illuminance;
+      if(!isFinite(lux))return;
+      lastSensorLux=lux;
+      document.getElementById('sensorLux').textContent=Math.round(lux);
+      document.getElementById('sensorFc').textContent=Math.round(lux/10.764);
+      recomputeSensor();
+      status.textContent='✓ 环境光传感器已连接（真实硬件 ALS，与 Light Meter 同源读数）';
+    });
+    s.addEventListener('error',function(e){
+      status.textContent='传感器启动失败：'+(e&&e.error?e.error.message:'未知错误')+'。可改用下方摄像头测光。';
+    });
+    s.start();
+  }catch(e){
+    status.textContent='传感器不可用：'+e.message+'。请用安卓 Chrome 或改用摄像头测光。';
+  }
 }
 // RGB 直方图（红/绿/蓝三通道分布，用于看偏色与过曝）
 function drawHist(d,w,h){
@@ -542,6 +594,16 @@ setHeroQuote();
 renderRef('bw');
 updateSun();
 document.getElementById('focal').dispatchEvent(new Event('input'));
+
+// 灰卡校准偏移滑块：实时重算传感器 EV
+document.getElementById('evOffset').addEventListener('input',function(){
+  evOffset=parseFloat(this.value)||0;
+  document.getElementById('evOffsetVal').textContent=evOffset.toFixed(1);
+  recomputeSensor();
+});
+
+// 启动环境光传感器（无需用户手势，但与摄像头不同源）
+startSensor();
 
 // 强制每次从服务器拉最新：注销已安装的任何 Service Worker 并清空其缓存。
 // 旧 SW 的 cache-first 会锁死旧页面，这是手机刷新仍显示旧版的根因。
