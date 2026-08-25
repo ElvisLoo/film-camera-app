@@ -1,0 +1,16 @@
+{
+  "name": "胶片摄影助手",
+  "short_name": "胶片助手",
+  "description": "胶卷摄影参数速查与曝光测光工具",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF9F5",
+  "theme_color": "#E9803C",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-mask.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#E9803C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="胶片助手">
+<title>胶片摄影助手 · 参数速查与测光</title>
+<style>
+  :root{
+    --bg:#FBF9F5; --card:#FFFFFF; --ink:#23211E; --muted:#7A766E; --line:#ECE8E1;
+    --amber:#E9803C; --amber-soft:#FCEFE2;
+    --teal:#1FA37A;  --teal-soft:#E2F5ED;
+    --blue:#3B82D6;  --blue-soft:#E8F1FC;
+    --pink:#D6548A;  --pink-soft:#FCE9F1;
+    --gray:#6B6862;  --gray-soft:#F1EEE8;
+    --shadow:0 4px 18px rgba(40,30,20,.07); --shadow-sm:0 1px 4px rgba(40,30,20,.05);
+    --radius:18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;min-height:100%;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -200px, #FCEBD8 0%, transparent 70%),
+      var(--bg);
+    color:var(--ink);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .shell{max-width:460px;margin:0 auto;min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;background:var(--bg);position:relative;
+    box-shadow:0 0 40px rgba(40,30,20,.08);overflow:hidden}
+
+  /* ---- hero header ---- */
+  .hero{position:relative;padding:26px 20px 20px;color:#fff;
+    background:linear-gradient(135deg,#E9803C 0%,#F0A85A 60%,#F2BC53 100%);
+    border-bottom-left-radius:26px;border-bottom-right-radius:26px}
+  .hero::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;
+    border-radius:50%;background:rgba(255,255,255,.12)}
+  .hero .badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);
+    padding:4px 11px;border-radius:999px;font-size:11px;letter-spacing:.5px;backdrop-filter:blur(4px)}
+  .hero .badge svg{width:13px;height:13px}
+  .hero h1{margin:12px 0 4px;font-size:23px;font-weight:700;letter-spacing:.5px}
+  .hero p{margin:0;font-size:12.5px;opacity:.92;animation:heroQuoteIn .9s ease both}
+  @keyframes heroQuoteIn{from{opacity:0;transform:translateY(8px)}to{opacity:.92;transform:none}}
+  .hero .ic{position:absolute;right:18px;bottom:14px;width:54px;height:54px;opacity:.9}
+
+  /* ---- iso selector ---- */
+  .iso-wrap{padding:14px 16px 4px}
+  .iso-label{font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .iso-label svg{width:13px;height:13px;color:var(--amber)}
+  .iso-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;-ms-overflow-style:none;scrollbar-width:none}
+  .iso-row::-webkit-scrollbar{display:none}
+  .iso-chip{flex:0 0 auto;min-width:54px;text-align:center;padding:9px 14px;border-radius:13px;
+    font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    box-shadow:var(--shadow-sm);transition:.18s;cursor:pointer}
+  .iso-chip.on{background:var(--amber);border-color:var(--amber);color:#fff;transform:translateY(-1px);
+    box-shadow:0 6px 14px rgba(233,128,60,.35)}
+
+  /* ---- main scroll ---- */
+  main{flex:1;overflow-y:auto;padding:10px 16px 18px;-webkit-overflow-scrolling:touch}
+
+  /* ---- subtabs (segmented) ---- */
+  .seg{display:flex;background:var(--gray-soft);border-radius:14px;padding:4px;margin:10px 0 14px;position:relative}
+  .seg .subtab{flex:1;text-align:center;padding:9px 4px;border-radius:11px;font-size:13px;color:var(--muted);
+    font-weight:500;transition:.2s;cursor:pointer;position:relative;z-index:1}
+  .seg .subtab.on{color:var(--ink);font-weight:600}
+  .seg .glider{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);
+    background:var(--card);border-radius:11px;box-shadow:var(--shadow-sm);transition:.22s;z-index:0}
+
+  /* ---- film info card ---- */
+  .info{background:linear-gradient(135deg,#FFF7EF,#FDEFE0);border:1px solid #F3E4D2;
+    border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .info .top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .info .top .disc{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    background:var(--amber);color:#fff;box-shadow:0 4px 10px rgba(233,128,60,.3)}
+  .info .top .disc svg{width:21px;height:21px}
+  .info h3{margin:0;font-size:16px;font-weight:700}
+  .info .kv{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px dashed #EAD9C6;font-size:13px}
+  .info .kv:first-of-type{border-top:none}
+  .info .kv .k{color:var(--muted)}
+  .info .kv .v{font-weight:600}
+  .info .tip{margin-top:10px;font-size:12.5px;color:#9a6b3e;background:rgba(233,128,60,.1);
+    padding:9px 11px;border-radius:10px;line-height:1.5}
+
+  /* ---- param cards ---- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:6px}
+  .pc{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:13px 13px 12px;
+    box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+  .pc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+  .pc .hd{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .pc .hd .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:var(--c-soft);color:var(--c)}
+  .pc .hd .ic svg{width:17px;height:17px}
+  .pc .hd b{font-size:13.5px;font-weight:600}
+  .pc p{margin:0 0 8px;font-size:11.5px;color:var(--muted);line-height:1.45}
+  .pc .chips{display:flex;gap:5px;flex-wrap:wrap}
+  .pc .chip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;padding:3px 7px;
+    border-radius:7px;background:var(--c-soft);color:var(--c);font-weight:600}
+
+  .sec-t{font-size:14px;font-weight:700;margin:20px 0 10px;display:flex;align-items:center;gap:7px}
+  .sec-t svg{width:16px;height:16px;color:var(--amber)}
+
+  /* ---- table ---- */
+  .tbl-wrap{background:var(--card);border:1px solid var(--line);border-radius:15px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line)}
+  th{background:var(--gray-soft);font-weight:600;color:var(--muted);font-size:11.5px}
+  tr:last-child td{border-bottom:none}
+  td .ape{font-family:ui-monospace,monospace;color:var(--teal);font-weight:600}
+  td .sh{font-family:ui-monospace,monospace;color:var(--blue);font-weight:600}
+
+  .note{background:linear-gradient(135deg,#FFF7EF,#FDEFE0);border:1px solid #F3E4D2;border-radius:15px;
+    padding:13px 15px;font-size:12.5px;line-height:1.6;margin-top:14px;color:#8a5e34}
+  .note b{color:var(--ink)}
+
+  /* ---- tools (meter page) ---- */
+  .tool{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 16px 15px;
+    box-shadow:var(--shadow);margin-bottom:14px}
+  .tool .th{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .tool .th .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:var(--teal-soft);color:var(--teal)}
+  .tool .th .ic svg{width:17px;height:17px}
+  .tool .th h3{margin:0;font-size:15px;font-weight:700}
+  select,input[type=number]{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:12px;
+    background:#FCFAF7;font-size:14px;color:var(--ink);appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' fill='none' stroke='%237A766E' stroke-width='1.6'/></svg>");
+    background-repeat:no-repeat;background-position:right 13px center;margin-bottom:12px}
+  input[type=number]{background-image:none}
+  .res{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .res .lab{font-size:12.5px;color:var(--muted)}
+  .res .big{font-family:ui-monospace,monospace;font-size:24px;font-weight:700;color:var(--teal)}
+  .res .big.blue{color:var(--blue)}
+  .equiv{margin-top:12px;background:#FCFAF7;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+  .equiv .row{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:12px;
+    padding:5px 0;border-bottom:1px dashed var(--line);color:var(--ink)}
+  .equiv .row:last-child{border-bottom:none}
+  .equiv .row.hl{color:var(--teal);font-weight:700}
+  .btn{display:block;width:100%;text-align:center;padding:13px;border-radius:13px;border:1px solid var(--line);
+    background:var(--card);font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;margin-top:6px;
+    transition:.15s;box-shadow:var(--shadow-sm)}
+  .btn:active{transform:scale(.985)}
+  .btn.primary{background:linear-gradient(135deg,#E9803C,#F0A85A);color:#fff;border:none;
+    box-shadow:0 6px 16px rgba(233,128,60,.32)}
+  .cam-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#15171c;border-radius:14px;overflow:hidden;margin-bottom:10px}
+  .cam-wrap video{width:100%;height:100%;object-fit:cover}
+  .cam-wrap .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#5b6068;font-size:12px}
+  .bar{height:14px;border-radius:8px;background:#F1EEE8;overflow:hidden;margin:4px 0 2px;border:1px solid var(--line)}
+  .bar>i{display:block;height:100%;width:0%;border-radius:8px;
+    background:linear-gradient(90deg,#3B82D6,#1FA37A,#E9803C);transition:width .15s}
+  .cam-tip{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+
+  /* ---- bottom nav ---- */
+  nav{display:flex;gap:8px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  nav .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 0;border-radius:14px;
+    font-size:14px;color:var(--muted);font-weight:500;cursor:pointer;transition:.18s;border:1px solid transparent}
+  nav .tab svg{width:19px;height:19px}
+  nav .tab.on{color:var(--amber);font-weight:700;background:var(--amber-soft);border-color:#F6DEC6}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <span class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><circle cx="6" cy="7" r="1"/><circle cx="6" cy="17" r="1"/><circle cx="18" cy="7" r="1"/><circle cx="18" cy="17" r="1"/></svg>
+      胶卷 · 测光 · 速查
+    </span>
+    <h1>胶片摄影助手</h1>
+    <p id="heroQuote">每一张快门都是成本 — 拍前瞄一眼</p>
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/><path d="M3 9h2M19 9h2"/></svg>
+  </div>
+
+  <div class="iso-wrap">
+    <div class="iso-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 6-4 6-4-6z"/></svg>
+      当前胶卷 ISO（买卷即定，拍完才换）
+    </div>
+    <div class="iso-row">
+      <div class="iso-chip" data-iso="100">100</div>
+      <div class="iso-chip" data-iso="200">200</div>
+      <div class="iso-chip on" data-iso="400">400</div>
+      <div class="iso-chip" data-iso="800">800</div>
+      <div class="iso-chip" data-iso="1600">1600</div>
+    </div>
+  </div>
+
+  <main>
+    <!-- ===== 速查表 ===== -->
+    <section id="page-ref">
+      <div class="seg">
+        <div class="glider" id="glider"></div>
+        <div class="subtab on" data-f="bw">黑白负片</div>
+        <div class="subtab" data-f="color">彩色负片</div>
+        <div class="subtab" data-f="slide">反转片</div>
+      </div>
+      <div id="ref-body"></div>
+    </section>
+
+    <!-- ===== 测光 ===== -->
+    <section id="page-meter" class="hidden">
+      <div class="tool">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span><h3>阳光16 计算器</h3></div>
+        <select id="lightSel">
+          <option value="16">晴天顺光</option>
+          <option value="11">薄云</option>
+          <option value="8">厚云</option>
+          <option value="5.6">阴天</option>
+          <option value="4">阴影 / 窗边</option>
+          <option value="2.8">室内（靠窗）</option>
+        </select>
+        <div class="res"><span class="lab">建议</span> 光圈 <span class="big" id="sunApe">f/16</span> · 快门 <span class="big blue" id="sunShut">1/500</span></div>
+        <div class="equiv" id="sunEquiv"></div>
+      </div>
+
+      <div class="tool">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><h3>安全快门（手持下限）</h3></div>
+        <input type="number" id="focal" placeholder="输入镜头焦距 mm，如 50" value="50" min="10" max="600">
+        <div class="res"><span class="lab">最低快门速度</span> <span class="big blue" id="safeVal">1/60</span></div>
+        <div class="cam-tip">低于此速度易手抖糊片，建议靠墙或上三脚架</div>
+      </div>
+
+      <div class="tool">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（手机实测）</h3></div>
+        <div class="cam-wrap"><video id="cam" autoplay playsinline muted></video><div class="ph" id="camPh">点下方启动摄像头</div></div>
+        <div class="bar"><i id="lumBar"></i></div>
+        <div class="res"><span class="lab">环境亮度</span> <span class="big" id="lumVal" style="font-size:18px">--</span></div>
+        <div class="cam-tip" id="camTip">测反射光、粗略参考。负片宽容大，偏 1-2 级仍可用；反转片请另备测光表。</div>
+        <div class="btn primary" id="camBtn">启动摄像头</div>
+      </div>
+
+      <div class="note">
+        <b>互易律：</b>改一个参数 N 级，用另一个反向 N 级补偿，曝光量不变。<br>
+        例 f/8 + 1/125 + ISO400 = f/4 + 1/500 + ISO400（同样亮度，景深 / 动感不同）。
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <div class="tab on" data-page="ref">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>
+      速查表
+    </div>
+    <div class="tab" data-page="meter">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+      测光
+    </div>
+  </nav>
+</div>
+
+<script>
+// 随机摄影情感句子（hero 副标题，每次刷新不同）。
+// 如需接真实「一言」API，可改为：
+//   fetch('https://v1.hitokoto.cn/').then(r=>r.json()).then(d=>{var e=document.getElementById('heroQuote');if(e)e.textContent=d.hitokoto;});
+// 但一言不按「摄影」主题筛选，句子易跑题，故默认用下方内置句库。
+var QUOTES = [
+  '每一张快门都是成本,拍前先瞄一眼',
+  '光不会等你,但胶片会替你记得',
+  '把转瞬即逝的光,留给不会重来的瞬间',
+  '按下快门前,世界先安静了一秒',
+  '胶片不修图,它只诚实地收藏光',
+  '你拍下的不是风景,是那一刻的自己',
+  '慢一点,胶卷数得清每一次心跳',
+  '等一束光,是摄影最温柔的耐心',
+  '曝光不足可以补,错过的瞬间不能重来',
+  '一卷三十六张,是三十六次认真的相遇',
+  '镜头里没有滤镜,只有真实的光与影',
+  '拍得糙不要紧,拍得少才可惜',
+  '时间会褪色,胶片替你留底色',
+  '最好的光线,往往在你愿意等的时候来',
+  '每一次按下,都是和世界的私语',
+  '模糊的不只是焦,还有来不及看清的从前',
+  '胶片贵,所以你学会了先看再拍',
+  '光影易逝,唯有记录让此刻长存',
+  '柯达黄,富士绿,装的是各自的青春',
+  'C200 便宜大碗,是新手的第一卷勇气',
+  '反转片娇贵,偏半级就翻脸,新手暂避',
+  '黑白片洗出来,世界突然变得讲道理',
+  '过期胶片像开盲盒,惊喜惊吓五五开',
+  '镜头越长,今天走的路越短',
+  '三脚架才是沉默的摄影老师',
+  '定焦练腿,变焦练腰,最后都练钱包',
+  '买镜头一时爽,背器材火葬场',
+  '测光表不会骗人,骗人的是手抖',
+  '阳光十六法则:记不住就多拍两张',
+  '冲扫店说"正常",就是最好的赞美'
+];
+function setHeroQuote(){
+  var el = document.getElementById('heroQuote');
+  if (!el) return;
+  el.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  // 重新触发淡入动画（每次刷新/调用都渐显）
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+}
+
+var ISO = 400;
+var STD = [8,15,30,60,125,250,500,1000,2000,4000];
+function near(v){var b=STD[0],d=1e9;STD.forEach(function(s){if(Math.abs(s-v)<d){d=Math.abs(s-v);b=s}});return b}
+function fnum(f){return 'f/'+f}
+
+var ICONS = {
+  iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 6-4 6-4-6z"/></svg>',
+  ape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 4l5 7-5 7-5-7z"/></svg>',
+  shu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  foc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 20l6-10 4 6 3-4 5 8z"/></svg>',
+  met:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>',
+  rec:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9h12l-3-3M20 15H8l3 3"/></svg>'
+};
+var FILM = {
+  bw:{name:'黑白负片',disc:ICONS.iso,iso:'100 / 200 / 400',tole:'±2 ~ 3 级（最宽容）',tip:'过曝不慌，欠曝丢暗部；冲洗容错最高，新手首选练手。',
+      sc:[['晴天户外','f/8-f/11','1/250-1/500','阳光16交叉验证'],['多云阴天','f/5.6-f/8','1/125-1/250','反差柔和'],['室内窗边','f/2.8-f/4','1/60-1/125','注意安全快门'],['夜景长曝','f/8-f/11','2s-30s','三脚架+快门线']]},
+  color:{name:'彩色负片 (C-41)',disc:ICONS.iso,iso:'200 / 400',tole:'±1.5 ~ 2 级',tip:'欠曝易偏色、丢层次；宁可偏亮半级。C400=ISO400，通用保险。',
+      sc:[['晴天户外','f/11-f/16','1/250-1/500','蓝绿鲜明'],['多云阴天','f/5.6-f/8','1/125-1/250','色彩饱满'],['室内窗边','f/2.8-f/4','1/60-1/125','补光更稳'],['傍晚街灯','f/2.8以下','1/30-1/60','靠墙或脚架']]},
+  slide:{name:'反转片 (E-6)',disc:ICONS.iso,iso:'50 / 100 / 200',tole:'±0.5 级（零容错）',tip:'贵且严苛，偏半级即废片；建议独立入射光测光表，新手暂避。',
+      sc:[['晴天户外','f/11-f/16','1/250-1/500','务必精准'],['多云阴天','f/8-f/11','1/125-1/250','点测光更稳'],['室内窗边','f/4-f/5.6','1/60-1/125','基本需补光'],['弱光','不推荐','—','宽容度不足']]}
+};
+var PARAMS = [
+  {t:'ISO 感光度',c:'amber',cs:'amber-soft',ico:'iso',d:'买卷时定死，拍完才能换。↑更亮但颗粒粗。',ch:['100','200','400','800','1600']},
+  {t:'光圈 Aperture',c:'teal',cs:'teal-soft',ico:'ape',d:'f值越小开口越大越亮（反着记）。↓虚化，↑清晰。',ch:['f/1.4','f/2.8','f/5.6','f/8','f/16']},
+  {t:'快门 Shutter',c:'blue',cs:'blue-soft',ico:'shu',d:'分母越大越快越暗。↑凝固，↓模糊。',ch:['1/60','1/125','1/250','1/500','1/1000']},
+  {t:'焦距 Focal',c:'pink',cs:'pink-soft',ico:'foc',d:'不直接影响曝光，但决定安全快门=1/焦距。',ch:['24','35','50','85','135']},
+  {t:'测光 Metering',c:'gray',cs:'gray-soft',ico:'met',d:'先设ISO，测光表才准。平均/中央/点测三种。',ch:['平均','中央','点测']},
+  {t:'互易律',c:'amber',cs:'amber-soft',ico:'rec',d:'改一参数N级，另一反向N级补偿，亮度不变。',ch:['1级','2倍光']}
+];
+
+function renderRef(key){
+  var f = FILM[key], html='';
+  html += '<div class="info"><div class="top"><div class="disc">'+f.disc+'</div><h3>'+f.name+'</h3></div>'+
+    '<div class="kv"><span class="k">推荐 ISO</span><span class="v">'+f.iso+'</span></div>'+
+    '<div class="kv"><span class="k">曝光宽容度</span><span class="v">'+f.tole+'</span></div>'+
+    '<div class="tip">'+f.tip+'</div></div>';
+  html += '<div class="grid">';
+  PARAMS.forEach(function(p){
+    var chips = p.ch.map(function(c){return '<span class="chip">'+c+'</span>'}).join('');
+    html += '<div class="pc" style="--c:var(--'+p.c+');--c-soft:var(--'+p.cs+')"><div class="hd"><span class="ic">'+ICONS[p.ico]+'</span><b>'+p.t+'</b></div><p>'+p.d+'</p><div class="chips">'+chips+'</div></div>';
+  });
+  html += '</div>';
+  html += '<div class="sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>常见场景参数速查</div>';
+  html += '<div class="tbl-wrap"><table><thead><tr><th>场景</th><th>光圈</th><th>快门</th><th>备注</th></tr></thead><tbody>';
+  f.sc.forEach(function(r){html+='<tr><td>'+r[0]+'</td><td class="ape">'+r[1]+'</td><td class="sh">'+r[2]+'</td><td style="color:var(--muted);font-size:11.5px">'+r[3]+'</td></tr>'});
+  html += '</tbody></table></div>';
+  html += '<div class="note"><b>阳光16 法则：</b>晴天顺光 f/16，快门=1/ISO；薄云 f/11 · 厚云 f/8 · 阴天 f/5.6 · 阴影/窗边 f/4 · 室内 f/2.8。</div>';
+  document.getElementById('ref-body').innerHTML = html;
+}
+
+// bottom tabs
+document.querySelectorAll('nav .tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('nav .tab').forEach(function(x){x.classList.remove('on')});
+    t.classList.add('on');
+    var p=t.getAttribute('data-page');
+    document.getElementById('page-ref').classList.toggle('hidden',p!=='ref');
+    document.getElementById('page-meter').classList.toggle('hidden',p!=='meter');
+  });
+});
+// subtabs + glider
+function moveGlider(idx){document.getElementById('glider').style.transform='translateX('+(idx*100)+'%)'}
+document.querySelectorAll('.subtab').forEach(function(t,i){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.subtab').forEach(function(x){x.classList.remove('on')});
+    t.classList.add('on');
+    moveGlider(i);
+    renderRef(t.getAttribute('data-f'));
+  });
+});
+// iso chips
+document.querySelectorAll('.iso-chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.querySelectorAll('.iso-chip').forEach(function(x){x.classList.remove('on')});
+    c.classList.add('on');
+    ISO = parseInt(c.getAttribute('data-iso'),10);
+    updateSun();
+  });
+});
+
+// sun16
+function updateSun(){
+  var ape = parseFloat(document.getElementById('lightSel').value);
+  var shut = near(ISO);
+  document.getElementById('sunApe').textContent = fnum(ape);
+  document.getElementById('sunShut').textContent = '1/'+shut;
+  var stops={'16':0,'11':1,'8':2,'5.6':3,'4':4,'2.8':5};
+  var cur=stops[String(ape)], apes=['16','11','8','5.6','4','2.8'], eq='';
+  [cur,cur-1,cur+1].forEach(function(i){
+    if(i<0||i>5)return;
+    var a=apes[i], sh=near(shut*Math.pow(2,cur-i));
+    eq+='<div class="row'+(i===cur?' hl':'')+'"><span>'+fnum(a)+' + 1/'+sh+'</span><span>ISO '+ISO+'</span></div>';
+  });
+  document.getElementById('sunEquiv').innerHTML=eq;
+}
+document.getElementById('lightSel').addEventListener('change',updateSun);
+
+// safe shutter
+document.getElementById('focal').addEventListener('input',function(){
+  var fl=parseFloat(this.value)||50;
+  document.getElementById('safeVal').textContent='1/'+near(fl);
+});
+
+// camera meter
+var camOn=false;
+document.getElementById('camBtn').addEventListener('click',function(){
+  if(camOn)return;
+  var v=document.getElementById('cam'),ph=document.getElementById('camPh');
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    document.getElementById('camTip').textContent='此浏览器不支持摄像头，请用手机 Chrome / Safari 打开 https 页面。';
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(s){
+    v.srcObject=s;camOn=true;ph.style.display='none';
+    document.getElementById('camBtn').textContent='测光中…';
+    loop();
+  }).catch(function(e){
+    document.getElementById('camTip').textContent='摄像头开启失败：'+e.message+'（需 https 或 localhost，并授权）。';
+  });
+});
+function loop(){
+  var v=document.getElementById('cam'),cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  cv.width=64;cv.height=48;
+  (function step(){
+    if(!camOn)return;
+    try{
+      ctx.drawImage(v,0,0,64,48);
+      var d=ctx.getImageData(0,0,64,48).data,sum=0;
+      for(var i=0;i<d.length;i+=4)sum+=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);
+      var lum=sum/(d.length/4),pct=Math.round(lum/255*100);
+      document.getElementById('lumBar').style.width=pct+'%';
+      document.getElementById('lumVal').textContent=pct+'%';
+      var tip='';
+      if(pct<25)tip='偏暗：开大光圈 / 放慢快门 / 用闪光。';
+      else if(pct>80)tip='偏亮：收小光圈，防过曝（负片可偏亮半级）。';
+      else tip='亮度适中，按阳光16或机内测光设参数即可。';
+      document.getElementById('camTip').textContent=tip+'（反射光、粗略参考）';
+    }catch(e){}
+    requestAnimationFrame(step);
+  })();
+}
+
+setHeroQuote();
+renderRef('bw');
+updateSun();
+document.getElementById('focal').dispatchEvent(new Event('input'));
+
+// PWA: 仅在 https 或 localhost 注册 Service Worker（离线缓存）
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
