@@ -252,9 +252,9 @@
       </div>
 
       <div class="tool">
-        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（反射光·参考）</h3></div>
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="13" rx="2.5"/><circle cx="12" cy="12.5" r="3.8"/></svg></span><h3>摄像头测光（反射光·📷 示意）</h3></div>
         <div class="cam-wrap"><video id="cam" autoplay playsinline muted></video><div class="ph" id="camPh">点下方启动摄像头</div>
-          <div class="cam-ovl" id="camOvl" style="display:none"><div class="ovl-main"><span id="ovlLux">--</span><small>LUX</small></div><div class="ovl-fc"><span id="ovlFc">--</span> fc</div><div class="ovl-sub"><span id="ovlPct">--</span>% · <span id="ovlVerdict">待机</span></div></div>
+          <div class="cam-ovl" id="camOvl" style="display:none"><div class="ovl-main"><span id="ovlLux">--</span><small>LUX*</small></div><div class="ovl-fc"><span id="ovlFc">--</span> fc</div><div class="ovl-sub"><span id="ovlPct">--</span>% · <span id="ovlVerdict">待机</span></div></div>
         </div>
         <div class="bar"><i id="lumBar"></i></div>
         <div class="res"><span class="lab">环境亮度</span> <span class="big" id="lumVal" style="font-size:18px">--</span></div>
@@ -263,7 +263,7 @@
           <div class="res"><span class="lab">EV @ ISO <span id="recIso">400</span></span> <span class="big blue" id="evVal">--</span></div>
           <div class="rec-grid" id="recGrid"><div class="rec-hint">启动摄像头后按实测光线给推荐光圈 / 快门</div></div>
         </div>
-        <div class="cam-tip" id="camTip">测反射光、粗略参考。负片宽容大，偏 1-2 级仍可用；反转片请另备测光表。EV / 推荐值受手机自动曝光影响，绝对值仅供参考，建议用阳光16交叉验证。</div>
+        <div class="cam-tip" id="camTip">⚠ 摄像头拿不到 ISO/快门/光圈元数据，lux / EV 仅作示意（与真值可能差几倍～十几倍），真实读数请用上方"传感器测光"块（仅安卓 Chrome）或相机机内测光。负片宽容大，可偏 1-2 级；反转片请另备专业测光表。</div>
         <div class="btn primary" id="camBtn">启动摄像头</div>
       </div>
 
