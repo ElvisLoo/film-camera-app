@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#E9803C">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -16,8 +16,16 @@
 <title>胶片摄影助手 · 参数速查与测光</title>
 <style>
   :root{
+  --sat:env(safe-area-inset-top,0px);
+  --sab:env(safe-area-inset-bottom,0px);
+  --sal:env(safe-area-inset-left,0px);
+  --sar:env(safe-area-inset-right,0px);
+
     --bg:#FBF9F5; --card:#FFFFFF; --ink:#23211E; --muted:#7A766E; --line:#ECE8E1;
-    --amber:#E9803C; --amber-soft:#FCEFE2;
+    --amber:#E9803C;
+  --amber-ink:#A64B0E;
+  --teal-ink:#0F6E50;
+  --blue-ink:#1F5FA8; --amber-soft:#FCEFE2;
     --teal:#1FA37A;  --teal-soft:#E2F5ED;
     --blue:#3B82D6;  --blue-soft:#E8F1FC;
     --pink:#D6548A;  --pink-soft:#FCE9F1;
@@ -37,7 +45,7 @@
     box-shadow:0 0 40px rgba(40,30,20,.08);overflow:hidden}
 
   /* ---- hero header ---- */
-  .hero{position:relative;padding:26px 20px 20px;color:#fff;
+  .hero{position:relative;padding:calc(26px + var(--sat)) calc(20px + var(--sar)) 20px calc(20px + var(--sal));color:#fff;
     background:linear-gradient(135deg,#E9803C 0%,#F0A85A 60%,#F2BC53 100%);
     border-bottom-left-radius:26px;border-bottom-right-radius:26px}
   .hero::after{content:"";position:absolute;right:-30px;top:-30px;width:140px;height:140px;
@@ -59,7 +67,7 @@
   .iso-chip{flex:0 0 auto;min-width:54px;text-align:center;padding:9px 14px;border-radius:13px;
     font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--muted);
     box-shadow:var(--shadow-sm);transition:.18s;cursor:pointer}
-  .iso-chip.on{background:var(--amber);border-color:var(--amber);color:#fff;transform:translateY(-1px);
+  .iso-chip.on{background:#C2551A;border-color:#C2551A;color:#fff;transform:translateY(-1px);
     box-shadow:0 6px 14px rgba(233,128,60,.35)}
 
   /* ---- main scroll ---- */
@@ -112,8 +120,8 @@
   th,td{padding:10px 11px;text-align:left;border-bottom:1px solid var(--line)}
   th{background:var(--gray-soft);font-weight:600;color:var(--muted);font-size:11.5px}
   tr:last-child td{border-bottom:none}
-  td .ape{font-family:ui-monospace,monospace;color:var(--teal);font-weight:600}
-  td .sh{font-family:ui-monospace,monospace;color:var(--blue);font-weight:600}
+  td .ape{font-family:ui-monospace,monospace;color:var(--teal-ink);font-weight:600}
+  td .sh{font-family:ui-monospace,monospace;color:var(--blue-ink);font-weight:600}
 
   .note{background:linear-gradient(135deg,#FFF7EF,#FDEFE0);border:1px solid #F3E4D2;border-radius:15px;
     padding:13px 15px;font-size:12.5px;line-height:1.6;margin-top:14px;color:#8a5e34}
@@ -134,8 +142,8 @@
   input[type=number]{background-image:none}
   .res{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:2px}
   .res .lab{font-size:12.5px;color:var(--muted)}
-  .res .big{font-family:ui-monospace,monospace;font-size:24px;font-weight:700;color:var(--teal)}
-  .res .big.blue{color:var(--blue)}
+  .res .big{font-family:ui-monospace,monospace;font-size:24px;font-weight:700;color:var(--teal-ink)}
+  .res .big.blue{color:var(--blue-ink)}
   .equiv{margin-top:12px;background:#FCFAF7;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
   .equiv .row{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:12px;
     padding:5px 0;border-bottom:1px dashed var(--line);color:var(--ink)}
@@ -173,8 +181,9 @@
   nav .tab{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 0;border-radius:14px;
     font-size:14px;color:var(--muted);font-weight:500;cursor:pointer;transition:.18s;border:1px solid transparent}
   nav .tab svg{width:19px;height:19px}
-  nav .tab.on{color:var(--amber);font-weight:700;background:var(--amber-soft);border-color:#F6DEC6}
+  nav .tab.on{color:var(--amber-ink);font-weight:700;background:var(--amber-soft);border-color:#F6DEC6}
   .hidden{display:none!important}
+.iso-chip,.subtab,nav .tab,.btn{touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -605,25 +614,17 @@ document.getElementById('evOffset').addEventListener('input',function(){
 // 启动环境光传感器（无需用户手势，但与摄像头不同源）
 startSensor();
 
-// 强制每次从服务器拉最新：注销已安装的任何 Service Worker 并清空其缓存。
-// 旧 SW 的 cache-first 会锁死旧页面，这是手机刷新仍显示旧版的根因。
-// 注销后不再注册新 SW，页面永远走网络加载（即用户要的"不要缓存、强制刷新"）。
-(function () {
-  try {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
-      });
-    }
-  } catch (e) {}
-  try {
-    if ('caches' in window) {
-      caches.keys().then(function (keys) {
-        keys.forEach(function (k) { if (k.indexOf('film') === 0) caches.delete(k); });
-      });
-    }
-  } catch (e) {}
-})();
+// 注册 Service Worker：胶片用户常在无网环境（山里、地铁）查参数，
+// 离线能力是这个 PWA 的主要价值。
+// 旧版这里做的是「注销 SW + 删缓存」，等于把离线能力关掉，已纠正。
+// 版本更新由 sw.js 的 stale-while-revalidate 负责：先给缓存秒开，后台拉新版。
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function (e) {
+      console.warn('SW 注册失败', e);
+    });
+  });
+}
 </script>
 </body>
 </html>
