@@ -327,3 +327,97 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
+
+// ===== 等效曝光换算 =====
+// 与上面两个"按场景给建议"的工具互补：这里解决"手里已有参数,想换个拍法"。
+// 选任一参数,其它自动补回同样亮度,并列出所有可用组合。
+function initEvSwap(){
+  if (!window.EVSwap) return;
+  var apeSel=document.getElementById('swApe');
+  var shutSel=document.getElementById('swShut');
+  var isoSel=document.getElementById('swIso');
+  var evOut=document.getElementById('swEv');
+  var listOut=document.getElementById('swOut');
+  var tipOut=document.getElementById('swTip');
+  if(!apeSel||!shutSel||!isoSel||!evOut||!listOut) return;
+
+  function refresh(from){
+    var N=parseFloat(apeSel.value);
+    var t=window.EVSwap.parseShutter(shutSel.value);
+    var iso=parseFloat(isoSel.value);
+    var ev=window.EVSwap.evOf(N,t,iso);
+    if(!isFinite(ev)){ evOut.textContent='--'; listOut.innerHTML=''; return; }
+
+    evOut.textContent=ev.toFixed(1);
+
+    // 组合列表里把"当前选中的这组"高亮，用户才知道自己在哪一格
+    var combos=window.EVSwap.combinations(ev,iso);
+    var html='';
+    for(var i=0;i<combos.length;i++){
+      var c=combos[i];
+      var on=(Math.abs(c.aperture-N)<0.01 && Math.abs(c.shutter-t)<1e-6);
+      html+='<div class="so-item'+(on?' on':'')+'"><b>f/'+c.aperture+'</b> · '+window.EVSwap.formatShutter(c.shutter)+'</div>';
+    }
+    listOut.innerHTML=html||'<div class="so-item">这个亮度在当前 ISO 下没有合适的组合</div>';
+
+    // 提示三件事：换到哪个方向、安全快门、胶片容错
+    var tips=[];
+    var safe=1/Number(document.getElementById('focal').value||50);
+    if(t<safe && t>0){
+      tips.push('⚠ 慢于安全快门（约 1/'+Math.round(1/safe)+'），手持可能糊');
+    }
+    if(t>=1){
+      tips.push('长曝光：>1 秒要上三脚架，胶片还需补倒易律失效');
+    }
+    if(iso>=800){
+      tips.push('ISO '+iso+' 颗粒明显，负片可接受，反转片慎用');
+    }
+    tipOut.textContent=tips.join('；')||'当前组合在手持范围内，可直接拍';
+  }
+
+  apeSel.addEventListener('change',function(){ applyChange('ape'); });
+  shutSel.addEventListener('change',function(){ applyChange('shut'); });
+  isoSel.addEventListener('change',function(){ applyChange('iso'); });
+
+  // 改一个参数时，把另一个「拉回」同样亮度，而不是三个都变。
+  // 用户改光圈就是想换景深，快门必须替他补上 —— 否则他得自己心算。
+  //
+  // 关键：锚点 EV 必须用「改动之前」的完整组合来算。
+  // 直接用新光圈配旧快门去算 EV，得到的是改动后的亮度，
+  // 再反解回来就成了恒等变换 —— 看起来"改了但没生效"。
+  function applyChange(which) {
+    var N = parseFloat(apeSel.value);
+    var t = window.EVSwap.parseShutter(shutSel.value);
+    var iso = parseFloat(isoSel.value);
+
+    if (which === 'ape') {
+      var anchor = window.EVSwap.evOf(prevN, prevT, iso);   // 旧光圈 + 旧快门
+      if (isFinite(anchor)) {
+        var nt = window.EVSwap.shutterFor(anchor, N, iso);  // 新光圈 + 同亮度
+        if (isFinite(nt)) setShutterSelect(window.EVSwap.nearest(window.EVSwap.SHUTTERS, nt));
+      }
+    } else if (which === 'iso') {
+      // ISO 变了，亮度基准也跟着变：保持光圈快门不变，
+      // 画面会亮一档或暗一档 —— 这是物理事实，不该"自动补偿"掉。
+      // 但要把快门提示更新，所以照样刷新。
+    }
+    // which === 'shut'：用户直接选了快门，不需要反解
+
+    prevN = N;
+    prevT = window.EVSwap.parseShutter(shutSel.value);
+    refresh(which);
+  }
+
+  function setShutterSelect(sec){
+    var opts=shutSel.options;
+    for(var i=0;i<opts.length;i++){
+      var v=window.EVSwap.parseShutter(opts[i].value);
+      if(Math.abs(v-sec)<1e-9){ shutSel.selectedIndex=i; return; }
+    }
+  }
+
+  var prevN=parseFloat(apeSel.value);
+  var prevT=window.EVSwap.parseShutter(shutSel.value);
+  refresh('init');
+}
+initEvSwap();

@@ -44,6 +44,11 @@ app.whenReady().then(async () => {
       hasAppJs: !!document.querySelector('script[src*="app.js"]'),
       swSupported: 'serviceWorker' in navigator,
       swControlled: !!navigator.serviceWorker && !!navigator.serviceWorker.controller,
+      // 等效曝光换算器
+      evSwap: !!document.getElementById('swApe'),
+      evValue: (document.getElementById('swEv') || {}).textContent || '',
+      evCombos: document.querySelectorAll('#swOut .so-item').length,
+      evTip: (document.getElementById('swTip') || {}).textContent || '',
     };
   })()`).catch((e) => ({ error: String(e) }));
 

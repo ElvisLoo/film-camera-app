@@ -111,6 +111,38 @@
         <div class="btn primary" id="camBtn">启动摄像头</div>
       </div>
 
+      <div class="tool" id="evSwap">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span><h3>等效曝光换算</h3></div>
+        <div class="cam-tip">手里已经是 f/8 · 1/125，但想换成 f/4 看景深？改任一档，其它自动补回来，亮度不变。</div>
+        <div class="swap-row">
+          <label class="swap-l">光圈</label>
+          <select id="swApe">
+            <option>1.4</option><option>2</option><option>2.8</option><option>4</option>
+            <option selected>5.6</option><option>8</option><option>11</option><option>16</option><option>22</option>
+          </select>
+        </div>
+        <div class="swap-row">
+          <label class="swap-l">快门</label>
+          <select id="swShut">
+            <option>1/2000</option><option>1/1000</option><option>1/500</option>
+            <option selected>1/250</option><option>1/125</option><option>1/60</option>
+            <option>1/30</option><option>1/15</option><option>1/8</option><option>1/4</option>
+            <option>1/2</option><option>1s</option><option>2s</option><option>4s</option>
+            <option>8s</option><option>15s</option><option>30s</option>
+          </select>
+        </div>
+        <div class="swap-row">
+          <label class="swap-l">ISO</label>
+          <select id="swIso">
+            <option>50</option><option>100</option><option selected>200</option>
+            <option>400</option><option>800</option><option>1600</option>
+          </select>
+        </div>
+        <div class="res"><span class="lab">曝光值</span> <span class="big blue" id="swEv">--</span> <span class="lab">EV</span></div>
+        <div class="swap-out" id="swOut"></div>
+        <div class="cam-tip" id="swTip"></div>
+      </div>
+
       <div class="note">
         <b>互易律：</b>改一个参数 N 级，用另一个反向 N 级补偿，曝光量不变。<br>
         例 f/8 + 1/125 + ISO400 = f/4 + 1/500 + ISO400（同样亮度，景深 / 动感不同）。
@@ -130,6 +162,7 @@
   </nav>
 </div>
 
+<script defer src="src/ev-swap.js?v=1"></script>
 <script defer src="src/app.js?v=1"></script>
 </body>
 </html>
