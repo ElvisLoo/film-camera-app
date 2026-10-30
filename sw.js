@@ -7,7 +7,7 @@
 //
 // 版本：改 BUILD 即可让所有用户换到新缓存，activate 会清掉旧版本。
 
-const BUILD = '20261030-1';
+const BUILD = '20261031-1';
 const CACHE_PREFIX = 'film-app-';
 const CACHE = CACHE_PREFIX + BUILD;
 
@@ -17,7 +17,10 @@ const PRECACHE = [
   './index.html',
   './manifest.webmanifest',
   './icon.svg',
-  './icon-mask.svg'
+  './icon-mask.svg',
+  // 拆出独立文件后必须一起缓存：漏一个，离线时页面就是没样式或不能点
+  './src/app.css',
+  './src/app.js'
 ];
 
 self.addEventListener('install', function (e) {

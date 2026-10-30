@@ -1,0 +1,329 @@
+// 随机摄影情感句子（hero 副标题，每次刷新不同）。
+// 如需接真实「一言」API，可改为：
+//   fetch('https://v1.hitokoto.cn/').then(r=>r.json()).then(d=>{var e=document.getElementById('heroQuote');if(e)e.textContent=d.hitokoto;});
+// 但一言不按「摄影」主题筛选，句子易跑题，故默认用下方内置句库。
+var QUOTES = [
+  '每一张快门都是成本,拍前先瞄一眼',
+  '光不会等你,但胶片会替你记得',
+  '把转瞬即逝的光,留给不会重来的瞬间',
+  '按下快门前,世界先安静了一秒',
+  '胶片不修图,它只诚实地收藏光',
+  '你拍下的不是风景,是那一刻的自己',
+  '慢一点,胶卷数得清每一次心跳',
+  '等一束光,是摄影最温柔的耐心',
+  '曝光不足可以补,错过的瞬间不能重来',
+  '一卷三十六张,是三十六次认真的相遇',
+  '镜头里没有滤镜,只有真实的光与影',
+  '拍得糙不要紧,拍得少才可惜',
+  '时间会褪色,胶片替你留底色',
+  '最好的光线,往往在你愿意等的时候来',
+  '每一次按下,都是和世界的私语',
+  '模糊的不只是焦,还有来不及看清的从前',
+  '胶片贵,所以你学会了先看再拍',
+  '光影易逝,唯有记录让此刻长存',
+  '柯达黄,富士绿,装的是各自的青春',
+  'C200 便宜大碗,是新手的第一卷勇气',
+  '反转片娇贵,偏半级就翻脸,新手暂避',
+  '黑白片洗出来,世界突然变得讲道理',
+  '过期胶片像开盲盒,惊喜惊吓五五开',
+  '镜头越长,今天走的路越短',
+  '三脚架才是沉默的摄影老师',
+  '定焦练腿,变焦练腰,最后都练钱包',
+  '买镜头一时爽,背器材火葬场',
+  '测光表不会骗人,骗人的是手抖',
+  '阳光十六法则:记不住就多拍两张',
+  '冲扫店说"正常",就是最好的赞美'
+];
+function setHeroQuote(){
+  var el = document.getElementById('heroQuote');
+  if (!el) return;
+  el.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  // 重新触发淡入动画（每次刷新/调用都渐显）
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+}
+
+var ISO = 400;
+var evOffset = 0;          // 灰卡校准偏移（EV 单位），对齐 Light Meter 用
+var lastSensorLux = NaN;   // 传感器最近一次真实 lux
+var STD = [8,15,30,60,125,250,500,1000,2000,4000];
+function near(v){var b=STD[0],d=1e9;STD.forEach(function(s){if(Math.abs(s-v)<d){d=Math.abs(s-v);b=s}});return b}
+function fnum(f){return 'f/'+f}
+
+var ICONS = {
+  iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l4 6-4 6-4-6z"/></svg>',
+  ape:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 4l5 7-5 7-5-7z"/></svg>',
+  shu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  foc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 20l6-10 4 6 3-4 5 8z"/></svg>',
+  met:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>',
+  rec:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9h12l-3-3M20 15H8l3 3"/></svg>'
+};
+var FILM = {
+  bw:{name:'黑白负片',disc:ICONS.iso,iso:'100 / 200 / 400',tole:'±2 ~ 3 级（最宽容）',tip:'过曝不慌，欠曝丢暗部；冲洗容错最高，新手首选练手。',
+      sc:[['晴天户外','f/8-f/11','1/250-1/500','阳光16交叉验证'],['多云阴天','f/5.6-f/8','1/125-1/250','反差柔和'],['室内窗边','f/2.8-f/4','1/60-1/125','注意安全快门'],['夜景长曝','f/8-f/11','2s-30s','三脚架+快门线']]},
+  color:{name:'彩色负片 (C-41)',disc:ICONS.iso,iso:'200 / 400',tole:'±1.5 ~ 2 级',tip:'欠曝易偏色、丢层次；宁可偏亮半级。C400=ISO400，通用保险。',
+      sc:[['晴天户外','f/11-f/16','1/250-1/500','蓝绿鲜明'],['多云阴天','f/5.6-f/8','1/125-1/250','色彩饱满'],['室内窗边','f/2.8-f/4','1/60-1/125','补光更稳'],['傍晚街灯','f/2.8以下','1/30-1/60','靠墙或脚架']]},
+  slide:{name:'反转片 (E-6)',disc:ICONS.iso,iso:'50 / 100 / 200',tole:'±0.5 级（零容错）',tip:'贵且严苛，偏半级即废片；建议独立入射光测光表，新手暂避。',
+      sc:[['晴天户外','f/11-f/16','1/250-1/500','务必精准'],['多云阴天','f/8-f/11','1/125-1/250','点测光更稳'],['室内窗边','f/4-f/5.6','1/60-1/125','基本需补光'],['弱光','不推荐','—','宽容度不足']]}
+};
+var PARAMS = [
+  {t:'ISO 感光度',c:'amber',cs:'amber-soft',ico:'iso',d:'买卷时定死，拍完才能换。↑更亮但颗粒粗。',ch:['100','200','400','800','1600']},
+  {t:'光圈 Aperture',c:'teal',cs:'teal-soft',ico:'ape',d:'f值越小开口越大越亮（反着记）。↓虚化，↑清晰。',ch:['f/1.4','f/2.8','f/5.6','f/8','f/16']},
+  {t:'快门 Shutter',c:'blue',cs:'blue-soft',ico:'shu',d:'分母越大越快越暗。↑凝固，↓模糊。',ch:['1/60','1/125','1/250','1/500','1/1000']},
+  {t:'焦距 Focal',c:'pink',cs:'pink-soft',ico:'foc',d:'不直接影响曝光，但决定安全快门=1/焦距。',ch:['24','35','50','85','135']},
+  {t:'测光 Metering',c:'gray',cs:'gray-soft',ico:'met',d:'先设ISO，测光表才准。平均/中央/点测三种。',ch:['平均','中央','点测']},
+  {t:'互易律',c:'amber',cs:'amber-soft',ico:'rec',d:'改一参数N级，另一反向N级补偿，亮度不变。',ch:['1级','2倍光']}
+];
+
+function renderRef(key){
+  var f = FILM[key], html='';
+  html += '<div class="info"><div class="top"><div class="disc">'+f.disc+'</div><h3>'+f.name+'</h3></div>'+
+    '<div class="kv"><span class="k">推荐 ISO</span><span class="v">'+f.iso+'</span></div>'+
+    '<div class="kv"><span class="k">曝光宽容度</span><span class="v">'+f.tole+'</span></div>'+
+    '<div class="tip">'+f.tip+'</div></div>';
+  html += '<div class="grid">';
+  PARAMS.forEach(function(p){
+    var chips = p.ch.map(function(c){return '<span class="chip">'+c+'</span>'}).join('');
+    html += '<div class="pc" style="--c:var(--'+p.c+');--c-soft:var(--'+p.cs+')"><div class="hd"><span class="ic">'+ICONS[p.ico]+'</span><b>'+p.t+'</b></div><p>'+p.d+'</p><div class="chips">'+chips+'</div></div>';
+  });
+  html += '</div>';
+  html += '<div class="sec-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></svg>常见场景参数速查</div>';
+  html += '<div class="tbl-wrap"><table><thead><tr><th>场景</th><th>光圈</th><th>快门</th><th>备注</th></tr></thead><tbody>';
+  f.sc.forEach(function(r){html+='<tr><td>'+r[0]+'</td><td class="ape">'+r[1]+'</td><td class="sh">'+r[2]+'</td><td style="color:var(--muted);font-size:11.5px">'+r[3]+'</td></tr>'});
+  html += '</tbody></table></div>';
+  html += '<div class="note"><b>阳光16 法则：</b>晴天顺光 f/16，快门=1/ISO；薄云 f/11 · 厚云 f/8 · 阴天 f/5.6 · 阴影/窗边 f/4 · 室内 f/2.8。</div>';
+  document.getElementById('ref-body').innerHTML = html;
+}
+
+// bottom tabs
+document.querySelectorAll('nav .tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('nav .tab').forEach(function(x){x.classList.remove('on')});
+    t.classList.add('on');
+    var p=t.getAttribute('data-page');
+    document.getElementById('page-ref').classList.toggle('hidden',p!=='ref');
+    document.getElementById('page-meter').classList.toggle('hidden',p!=='meter');
+  });
+});
+// subtabs + glider
+function moveGlider(idx){document.getElementById('glider').style.transform='translateX('+(idx*100)+'%)'}
+document.querySelectorAll('.subtab').forEach(function(t,i){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('.subtab').forEach(function(x){x.classList.remove('on')});
+    t.classList.add('on');
+    moveGlider(i);
+    renderRef(t.getAttribute('data-f'));
+  });
+});
+// iso chips
+document.querySelectorAll('.iso-chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.querySelectorAll('.iso-chip').forEach(function(x){x.classList.remove('on')});
+    c.classList.add('on');
+    ISO = parseInt(c.getAttribute('data-iso'),10);
+    updateSun();
+    document.getElementById('recIso').textContent = ISO;
+    document.getElementById('sensorIso').textContent = ISO;
+    renderRec(lastEvIso);
+    recomputeSensor();
+  });
+});
+
+// sun16
+function updateSun(){
+  var ape = parseFloat(document.getElementById('lightSel').value);
+  var shut = near(ISO);
+  document.getElementById('sunApe').textContent = fnum(ape);
+  document.getElementById('sunShut').textContent = '1/'+shut;
+  var stops={'16':0,'11':1,'8':2,'5.6':3,'4':4,'2.8':5};
+  var cur=stops[String(ape)], apes=['16','11','8','5.6','4','2.8'], eq='';
+  [cur,cur-1,cur+1].forEach(function(i){
+    if(i<0||i>5)return;
+    var a=apes[i], sh=near(shut*Math.pow(2,cur-i));
+    eq+='<div class="row'+(i===cur?' hl':'')+'"><span>'+fnum(a)+' + 1/'+sh+'</span><span>ISO '+ISO+'</span></div>';
+  });
+  document.getElementById('sunEquiv').innerHTML=eq;
+}
+document.getElementById('lightSel').addEventListener('change',updateSun);
+
+// safe shutter
+document.getElementById('focal').addEventListener('input',function(){
+  var fl=parseFloat(this.value)||50;
+  document.getElementById('safeVal').textContent='1/'+near(fl);
+});
+
+// camera meter
+var camOn=false;
+// 优先后置（exact 强制），无后置则回退到后置偏好，再回退任意摄像头
+var camConstraints=[
+  {video:{facingMode:{exact:'environment'}}},
+  {video:{facingMode:'environment'}},
+  {video:true}
+];
+function startCam(i){
+  if(i>=camConstraints.length){
+    document.getElementById('camTip').textContent='无法访问任何摄像头，请检查权限或设备。';
+    return;
+  }
+  navigator.mediaDevices.getUserMedia(camConstraints[i]).then(function(s){
+    var v=document.getElementById('cam'),ph=document.getElementById('camPh'),ovl=document.getElementById('camOvl');
+    v.srcObject=s;camOn=true;ph.style.display='none';ovl.style.display='block';
+    document.getElementById('camBtn').textContent='测光中…';
+    loop();
+  }).catch(function(){startCam(i+1)});
+}
+document.getElementById('camBtn').addEventListener('click',function(){
+  if(camOn)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    document.getElementById('camTip').textContent='此浏览器不支持摄像头，请用手机 Chrome / Safari 打开 https 页面。';
+    return;
+  }
+  startCam(0);
+});
+function loop(){
+  var v=document.getElementById('cam'),cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  cv.width=64;cv.height=48;
+  (function step(){
+    if(!camOn)return;
+    try{
+      ctx.drawImage(v,0,0,64,48);
+      var d=ctx.getImageData(0,0,64,48).data,sum=0;
+      for(var i=0;i<d.length;i+=4)sum+=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);
+      var lum=sum/(d.length/4),pct=Math.round(lum/255*100);
+      document.getElementById('lumBar').style.width=pct+'%';
+      document.getElementById('lumVal').textContent=pct+'%';
+      document.getElementById('ovlPct').textContent=pct;
+      // 估算照度（仅供参考，非校准 lux；手机自动曝光，绝对值不可靠）
+      var lux=Math.round(50000*Math.pow(pct/100,4));
+      document.getElementById('ovlLux').textContent=lux;
+      // FC（英尺-烛光）：1 fc ≈ 10.764 lux
+      document.getElementById('ovlFc').textContent=Math.round(lux/10.764);
+      // EV：基于粗略 lux 估算（仅供参考）；高 ISO 应给更快快门，故 +log2(ISO/100)
+      var ev100=Math.log2(lux/2.5);
+      var evIso=ev100+Math.log2(ISO/100);
+      lastEvIso=evIso;
+      document.getElementById('evVal').textContent=isFinite(evIso)?evIso.toFixed(1):'--';
+      renderRec(evIso);
+      drawHist(d,300,56);
+      var tip='',verdict='';
+      if(pct<25){tip='偏暗：开大光圈 / 放慢快门 / 用闪光。';verdict='偏暗';}
+      else if(pct>80){tip='偏亮：收小光圈，防过曝（负片可偏亮半级）。';verdict='偏亮';}
+      else {tip='亮度适中，按阳光16或机内测光设参数即可。';verdict='适中';}
+      document.getElementById('camTip').textContent=tip+'（反射光、粗略参考）';
+      document.getElementById('ovlVerdict').textContent=verdict;
+    }catch(e){}
+    requestAnimationFrame(step);
+  })();
+}
+
+// 最近一次 EV（供 ISO 切换时重渲染推荐表）
+var lastEvIso=NaN;
+var histCv=document.getElementById('hist');
+var histCtx=histCv?histCv.getContext('2d'):null;
+// 把秒数格式化为最接近的相机标准快门档
+function fmtShut(t){
+  var denoms=[8000,4000,2000,1000,500,250,125,60,30,15,8,4,2];
+  if(t>=1){
+    var slow=[30,15,8,4,2,1],best=Math.min(slow[0],t);
+    for(var i=0;i<slow.length;i++){ if(Math.abs(slow[i]-t)<=Math.abs(best-t)) best=slow[i]; }
+    return (Math.round(best*10)/10)+'s';
+  }
+  var x=1/t,bd=denoms[0];
+  for(var j=0;j<denoms.length;j++){ if(Math.abs(denoms[j]-x)<Math.abs(bd-x)) bd=denoms[j]; }
+  return '1/'+bd;
+}
+// 基于 EV@ISO 生成推荐光圈/快门（互易律自动补偿）的 HTML
+function buildRecHTML(evIso){
+  if(!isFinite(evIso)){
+    return '<div class="rec-hint">传感器/摄像头就绪后按实测光线给推荐光圈 / 快门</div>';
+  }
+  var fs=[2.8,4,5.6,8,11,16],html='';
+  for(var i=0;i<fs.length;i++){
+    var f=fs[i],t=f*f/Math.pow(2,evIso);
+    html+='<div class="rec-row"><span class="rec-f">f/'+f+'</span><span class="rec-s">'+fmtShut(t)+'</span></div>';
+  }
+  return html;
+}
+function renderRec(evIso){ var g=document.getElementById('recGrid'); if(g)g.innerHTML=buildRecHTML(evIso); }
+function renderSensorRec(evIso){ var g=document.getElementById('sensorRecGrid'); if(g)g.innerHTML=buildRecHTML(evIso); }
+
+// 传感器读数 → 用 photon 同款入射光 EV 数学重算（含灰卡偏移）
+function recomputeSensor(){
+  if(!isFinite(lastSensorLux) || lastSensorLux<=0){ return; }
+  var ev100 = Math.log2(lastSensorLux/2.5) + evOffset;   // EV@ISO100 + 灰卡偏移
+  var evIso = ev100 + Math.log2(ISO/100);                // 换算到所选 ISO
+  document.getElementById('sensorEv').textContent = evIso.toFixed(1);
+  renderSensorRec(evIso);
+}
+
+// 环境光传感器（AmbientLightSensor，读手机硬件 ALS，与 Light Meter 同源）
+function startSensor(){
+  var status=document.getElementById('sensorStatus');
+  if(!('AmbientLightSensor' in window)){
+    status.textContent='本浏览器不支持环境光传感器（iOS Safari / 微信 / QQ 常见）。请用安卓 Chrome 打开，或改用下方摄像头测光。';
+    return;
+  }
+  try{
+    var s=new AmbientLightSensor({frequency:3});
+    s.addEventListener('reading',function(){
+      var lux=s.illuminance;
+      if(!isFinite(lux))return;
+      lastSensorLux=lux;
+      document.getElementById('sensorLux').textContent=Math.round(lux);
+      document.getElementById('sensorFc').textContent=Math.round(lux/10.764);
+      recomputeSensor();
+      status.textContent='✓ 环境光传感器已连接（真实硬件 ALS，与 Light Meter 同源读数）';
+    });
+    s.addEventListener('error',function(e){
+      status.textContent='传感器启动失败：'+(e&&e.error?e.error.message:'未知错误')+'。可改用下方摄像头测光。';
+    });
+    s.start();
+  }catch(e){
+    status.textContent='传感器不可用：'+e.message+'。请用安卓 Chrome 或改用摄像头测光。';
+  }
+}
+// RGB 直方图（红/绿/蓝三通道分布，用于看偏色与过曝）
+function drawHist(d,w,h){
+  if(!histCtx)return;
+  var bins=32,rh=new Array(bins).fill(0),gh=new Array(bins).fill(0),bh=new Array(bins).fill(0);
+  for(var i=0;i<d.length;i+=4){ rh[d[i]>>3]++; gh[d[i+1]>>3]++; bh[d[i+2]>>3]++; }
+  var max=1;
+  for(var b=0;b<bins;b++){ if(rh[b]>max)max=rh[b]; if(gh[b]>max)max=gh[b]; if(bh[b]>max)max=bh[b]; }
+  var bw=w/bins;
+  histCtx.clearRect(0,0,w,h);
+  for(var k=0;k<bins;k++){
+    var r2=rh[k]/max*h,g2=gh[k]/max*h,b2=bh[k]/max*h;
+    histCtx.fillStyle='rgba(255,90,90,.55)'; histCtx.fillRect(k*bw,h-r2,bw-0.6,r2);
+    histCtx.fillStyle='rgba(90,220,130,.55)'; histCtx.fillRect(k*bw,h-g2,bw-0.6,g2);
+    histCtx.fillStyle='rgba(90,150,255,.55)'; histCtx.fillRect(k*bw,h-b2,bw-0.6,b2);
+  }
+}
+renderRec(lastEvIso);
+
+setHeroQuote();
+renderRef('bw');
+updateSun();
+document.getElementById('focal').dispatchEvent(new Event('input'));
+
+// 灰卡校准偏移滑块：实时重算传感器 EV
+document.getElementById('evOffset').addEventListener('input',function(){
+  evOffset=parseFloat(this.value)||0;
+  document.getElementById('evOffsetVal').textContent=evOffset.toFixed(1);
+  recomputeSensor();
+});
+
+// 启动环境光传感器（无需用户手势，但与摄像头不同源）
+startSensor();
+
+// 注册 Service Worker：胶片用户常在无网环境（山里、地铁）查参数，
+// 离线能力是这个 PWA 的主要价值。
+// 旧版这里做的是「注销 SW + 删缓存」，等于把离线能力关掉，已纠正。
+// 版本更新由 sw.js 的 stale-while-revalidate 负责：先给缓存秒开，后台拉新版。
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(function (e) {
+      console.warn('SW 注册失败', e);
+    });
+  });
+}

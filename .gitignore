@@ -7,3 +7,8 @@ Thumbs.db
 
 # 依赖(本仓库为纯静态,暂无)
 node_modules/
+
+# 临时验证脚本
+.tools-verify.js
+tools-verify.js
+.playwright-mcp/
