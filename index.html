@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#E9803C">
+<!-- CSP：资源限定同源，只额外放行一言接口（可选功能，默认注释掉）。
+     不放开 unsafe-eval —— 代码里没有 eval / new Function，放开等于白送一个 XSS 执行面。
+     挡的是「依赖被投毒」和「胶卷型号字段被当标签执行」这两类问题。
+     注意：file: 必须放行，否则用 file:// 直接双击打开时整页脚本被拦，出现白屏。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file: 'unsafe-inline'; img-src 'self' file: data: blob:; font-src 'self' file: data:; connect-src 'self' file: https://v1.hitokoto.cn; manifest-src 'self' file:; worker-src 'self' file:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
