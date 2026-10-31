@@ -206,3 +206,9 @@
   background: rgba(59,130,246,.1);
   box-shadow: inset 0 0 0 1px rgba(59,130,246,.3);
 }
+
+/* 摄像头按钮的"测光中"状态：与"启动"明显区分，避免用户以为没点上 */
+#camBtn.on {
+  background: #d9534f;
+  color: #fff;
+}

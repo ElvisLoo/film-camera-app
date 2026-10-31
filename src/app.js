@@ -161,6 +161,10 @@ var camConstraints=[
   {video:{facingMode:'environment'}},
   {video:true}
 ];
+// 当前媒体流。必须在停止时显式 stop 每一条 track：
+// 只把 srcObject 置空不会关摄像头，指示灯会一直亮着，电池也一直在耗。
+var camStream=null;
+
 function startCam(i){
   if(i>=camConstraints.length){
     document.getElementById('camTip').textContent='无法访问任何摄像头，请检查权限或设备。';
@@ -168,13 +172,41 @@ function startCam(i){
   }
   navigator.mediaDevices.getUserMedia(camConstraints[i]).then(function(s){
     var v=document.getElementById('cam'),ph=document.getElementById('camPh'),ovl=document.getElementById('camOvl');
+    camStream=s;
     v.srcObject=s;camOn=true;ph.style.display='none';ovl.style.display='block';
-    document.getElementById('camBtn').textContent='测光中…';
+    document.getElementById('camBtn').textContent='停止测光';
+    document.getElementById('camBtn').classList.add('on');
     loop();
   }).catch(function(){startCam(i+1)});
 }
+
+/** 关掉摄像头：停循环、停 track、复位界面 */
+function stopCam(){
+  camOn=false;
+  if(camStream){
+    try{ camStream.getTracks().forEach(function(t){t.stop()}); }catch(e){}
+    camStream=null;
+  }
+  var v=document.getElementById('cam');
+  if(v) v.srcObject=null;
+  var ph=document.getElementById('camPh'),ovl=document.getElementById('camOvl');
+  if(ph) ph.style.display='';
+  if(ovl) ovl.style.display='none';
+  var btn=document.getElementById('camBtn');
+  if(btn){ btn.textContent='启动摄像头'; btn.classList.remove('on'); }
+  var tip=document.getElementById('camTip');
+  if(tip) tip.textContent='摄像头已关闭（省电）。需要测光时再启动。';
+}
+
+// 切到别的 App / 锁屏时暂停。
+// 原来 requestAnimationFrame 一旦启动就无限跑，页面进后台浏览器虽会降频，
+// 但摄像头 track 一直开着 —— 手机测光一轮下来肉眼可见掉电。
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden && camOn) stopCam();
+});
+
 document.getElementById('camBtn').addEventListener('click',function(){
-  if(camOn)return;
+  if(camOn){ stopCam(); return; }
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
     document.getElementById('camTip').textContent='此浏览器不支持摄像头，请用手机 Chrome / Safari 打开 https 页面。';
     return;
@@ -184,8 +216,15 @@ document.getElementById('camBtn').addEventListener('click',function(){
 function loop(){
   var v=document.getElementById('cam'),cv=document.createElement('canvas'),ctx=cv.getContext('2d');
   cv.width=64;cv.height=48;
+  // 测光只需要"当前有多亮"，不需要流畅动画。
+  // 按 60fps 跑等于每帧一次 drawImage + getImageData（后者要同步回读像素，
+  // 是 CPU 上最贵的一步）。降到 8fps，读数依然跟得上手，耗电明显下降。
+  var MIN_INTERVAL=125, lastAt=0;
   (function step(){
     if(!camOn)return;
+    var now=(window.performance&&performance.now)?performance.now():Date.now();
+    if(now-lastAt<MIN_INTERVAL){ requestAnimationFrame(step); return; }
+    lastAt=now;
     try{
       ctx.drawImage(v,0,0,64,48);
       var d=ctx.getImageData(0,0,64,48).data,sum=0;

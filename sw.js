@@ -7,7 +7,7 @@
 //
 // 版本：改 BUILD 即可让所有用户换到新缓存，activate 会清掉旧版本。
 
-const BUILD = '20261031-3';
+const BUILD = '20261031-4';
 const CACHE_PREFIX = 'film-app-';
 const CACHE = CACHE_PREFIX + BUILD;
 
