@@ -214,7 +214,10 @@ document.getElementById('camBtn').addEventListener('click',function(){
   startCam(0);
 });
 function loop(){
-  var v=document.getElementById('cam'),cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  // willReadFrequently：声明这块 canvas 会被频繁 getImageData 读回。
+  // 不声明时浏览器默认把 canvas 放在 GPU 上，每次读回都要同步拷贝，
+  // 控制台会持续告警，且实际开销正是测光循环里最贵的一步。
+  var v=document.getElementById('cam'),cv=document.createElement('canvas'),ctx=cv.getContext('2d',{willReadFrequently:true});
   cv.width=64;cv.height=48;
   // 测光只需要"当前有多亮"，不需要流畅动画。
   // 按 60fps 跑等于每帧一次 drawImage + getImageData（后者要同步回读像素，
