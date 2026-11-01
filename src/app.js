@@ -102,8 +102,12 @@ document.querySelectorAll('nav .tab').forEach(function(t){
     document.querySelectorAll('nav .tab').forEach(function(x){x.classList.remove('on')});
     t.classList.add('on');
     var p=t.getAttribute('data-page');
-    document.getElementById('page-ref').classList.toggle('hidden',p!=='ref');
-    document.getElementById('page-meter').classList.toggle('hidden',p!=='meter');
+    // 按 data-page 统一处理，不要写死具体页面 ——
+    // 原来这里只 toggle 了 ref 和 meter，新增的 roll 页永远不会显示，
+    // 表现为"点了 tab 没反应"，而且控制台不会报任何错。
+    document.querySelectorAll('main > section[id^="page-"]').forEach(function(sec){
+      sec.classList.toggle('hidden', sec.id !== 'page-' + p);
+    });
   });
 });
 // subtabs + glider
@@ -463,3 +467,216 @@ function initEvSwap(){
   refresh('init');
 }
 initEvSwap();
+
+// ===== 胶卷记录 =====
+// 按卷归档：胶片用户的心智单位就是"一卷"，按张记会把一件事拆成 36 条孤数据。
+var rollStore = null;
+var currentRollId = null;
+
+function initRollBook() {
+  if (!window.RollBook) return;
+  rollStore = new window.RollBook.RollStore(window.localStorage);
+  rollStore.load();
+
+  // 记住上次打开的卷，切页面回来不用重选
+  try {
+    currentRollId = window.localStorage.getItem('film.currentRoll');
+  } catch (e) { currentRollId = null; }
+  if (currentRollId && !rollStore.get(currentRollId)) currentRollId = null;
+
+  var btnNew = document.getElementById('btnNewRoll');
+  if (btnNew) {
+    btnNew.onclick = function () {
+      var t = document.getElementById('newRollType');
+      var l = document.getElementById('newRollLabel');
+      var roll = rollStore.startRoll({
+        type: t ? t.value : 'color',
+        label: l ? l.value : '',
+      });
+      if (l) l.value = '';
+      setCurrentRoll(roll.id);
+      renderRolls();
+      showRollDetail(roll.id);
+    };
+  }
+
+  var btnBack = document.getElementById('btnRollBack');
+  if (btnBack) btnBack.onclick = function () { showRollDetail(null); };
+
+  var btnExp = document.getElementById('btnRollExport');
+  if (btnExp) btnExp.onclick = function () {
+    if (!currentRollId) return;
+    var text = rollStore.exportText(currentRollId);
+    copyText(text);
+  };
+
+  var btnLog = document.getElementById('btnLogShot');
+  if (btnLog) btnLog.onclick = doLogShot;
+
+  renderRolls();
+  updateLogShotHint();
+}
+
+function setCurrentRoll(id) {
+  currentRollId = id;
+  try {
+    if (id) window.localStorage.setItem('film.currentRoll', id);
+    else window.localStorage.removeItem('film.currentRoll');
+  } catch (e) { /* 隐私模式下忽略 */ }
+  updateLogShotHint();
+}
+
+function updateLogShotHint() {
+  var h = document.getElementById('logShotHint');
+  if (!h) return;
+  var roll = currentRollId && rollStore ? rollStore.get(currentRollId) : null;
+  if (!roll) {
+    h.textContent = '还没有打开的胶卷 —— 先去「胶卷」页开一卷。';
+    return;
+  }
+  var sm = window.RollBook.summarize(roll);
+  var name = roll.label || sm.film.name;
+  h.textContent = '当前胶卷：' + name + '（已记 ' + sm.count + ' 张，剩 ' + sm.left + '）';
+}
+
+function doLogShot() {
+  if (!rollStore) return;
+  var roll = currentRollId && rollStore.get(currentRollId);
+  if (!roll) {
+    toast('先去「胶卷」页开一卷');
+    return;
+  }
+  // 用当前实测 EV；没有传感器数据时退回最近一次的推荐值
+  var ev = isFinite(lastEvIso) ? lastEvIso : (isFinite(EVSwap.evOf(5.6, 1/125, ISO)) ? EVSwap.evOf(5.6, 1/125, ISO) : NaN);
+  if (!isFinite(ev)) { toast('还没有测光数据'); return; }
+
+  var ape = 8;
+  var t = EVSwap.shutterFor(ev, ape, ISO);
+  var shutter = isFinite(t) ? EVSwap.formatShutter(EVSwap.nearest(EVSwap.SHUTTERS, t)) : '—';
+
+  var r = rollStore.addShot(roll.id, {
+    at: Date.now(), ev: ev, iso: ISO, aperture: ape, shutter: shutter, note: '',
+  });
+  if (!r.ok) {
+    toast(r.reason === 'full' ? '这卷记满了' : '记录失败');
+    return;
+  }
+  toast('已记第 ' + rollStore.get(roll.id).shots.length + ' 张');
+  updateLogShotHint();
+  renderRolls();
+}
+
+function renderRolls() {
+  var box = document.getElementById('rollList');
+  var empty = document.getElementById('rollEmpty');
+  if (!box || !rollStore) return;
+  var rolls = rollStore.list();
+  if (empty) empty.style.display = rolls.length ? 'none' : '';
+  box.innerHTML = '';
+  rolls.forEach(function (roll) {
+    var sm = window.RollBook.summarize(roll);
+    var card = document.createElement('div');
+    card.className = 'roll-card' + (roll.id === currentRollId ? ' on' : '');
+    // 用 textContent 而非 innerHTML：卷名是用户输入，不能当 HTML 解析
+    var title = document.createElement('div');
+    title.className = 'rc-title';
+    title.textContent = (roll.label || sm.film.name) + (roll.endedAt ? '' : ' · 进行中');
+    var meta = document.createElement('div');
+    meta.className = 'rc-meta';
+    meta.textContent = sm.film.name + ' · ISO ' + roll.iso + ' · ' + sm.count + ' 张 · 剩 ' + sm.left;
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.onclick = function () { showRollDetail(roll.id); };
+    box.appendChild(card);
+  });
+}
+
+function showRollDetail(id) {
+  var detail = document.getElementById('rollDetail');
+  var list = document.getElementById('rollList');
+  var empty = document.getElementById('rollEmpty');
+  if (!detail) return;
+
+  if (!id) {
+    detail.classList.add('hidden');
+    if (list) list.style.display = '';
+    if (empty) empty.style.display = rollStore && rollStore.list().length ? 'none' : '';
+    return;
+  }
+  var roll = rollStore.get(id);
+  if (!roll) return;
+  setCurrentRoll(id);
+  renderRolls();
+
+  detail.classList.remove('hidden');
+  if (list) list.style.display = 'none';
+  if (empty) empty.style.display = 'none';
+
+  var sm = window.RollBook.summarize(roll);
+  var title = document.getElementById('rollDetailTitle');
+  if (title) title.textContent = roll.label || sm.film.name;
+  var meta = document.getElementById('rollDetailMeta');
+  if (meta) {
+    var range = sm.evRange ? ('EV ' + sm.evRange.min.toFixed(1) + ' ~ ' + sm.evRange.max.toFixed(1)) : '还没有记录';
+    meta.textContent = sm.film.name + ' · ISO ' + roll.iso + ' · ' + sm.count + ' 张 · ' + range;
+  }
+
+  var shots = document.getElementById('rollShots');
+  if (shots) {
+    shots.innerHTML = '';
+    if (!roll.shots.length) {
+      var h = document.createElement('div');
+      h.className = 'so-item';
+      h.textContent = '这卷还没有记录。去测光页点「记一张」。';
+      shots.appendChild(h);
+    }
+    roll.shots.forEach(function (s) {
+      var d = new Date(s.at);
+      var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+      var item = document.createElement('div');
+      item.className = 'so-item';
+      item.textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) +
+        '  EV' + s.ev.toFixed(1) + '  f/' + window.RollBook.trimNum(s.aperture) + '  ' + s.shutter;
+      shots.appendChild(item);
+    });
+  }
+}
+
+/** 复制到剪贴板：老浏览器没有 clipboard API，退化到 execCommand */
+function copyText(text) {
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast('已复制'); },
+      function () { toast('复制失败'); });
+    return;
+  }
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('已复制');
+  } catch (e) { toast('复制失败'); }
+}
+
+/** 轻提示：没有引入 UI 库，自己做一个 */
+var toastTimer = 0;
+function toast(msg) {
+  var el = document.getElementById('toastEl');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toastEl';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1800);
+}
+
+initRollBook();

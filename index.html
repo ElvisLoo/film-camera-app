@@ -59,6 +59,34 @@
       <div id="ref-body"></div>
     </section>
 
+    <!-- ===== 胶卷记录 ===== -->
+    <section id="page-roll" class="hidden">
+      <div class="tool">
+        <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M7 6V4h3v2M14 6V4h3v2"/></svg></span><h3>开一卷新胶卷</h3></div>
+        <div class="cam-tip">按卷记，等你冲洗出来好对照。数据只存在这台设备上。</div>
+        <select id="newRollType">
+          <option value="bw">黑白负片</option>
+          <option value="color" selected>彩色负片 C-41</option>
+          <option value="slide">反转片 E-6</option>
+        </select>
+        <input type="text" id="newRollLabel" placeholder="备注（可选），如「外滩扫街」" maxlength="40">
+        <div class="btn primary" id="btnNewRoll">开卷</div>
+      </div>
+
+      <div id="rollList" class="roll-list"></div>
+      <div id="rollEmpty" class="note">还没有胶卷记录。开一卷后，测光页每测一次就能往里记一张。</div>
+
+      <div id="rollDetail" class="hidden">
+        <div class="tool">
+          <div class="th"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span><h3 id="rollDetailTitle">当前胶卷</h3></div>
+          <div class="res" id="rollDetailMeta"></div>
+          <div class="swap-out" id="rollShots"></div>
+          <div class="btn" id="btnRollBack">← 返回列表</div>
+          <div class="btn" id="btnRollExport" style="margin-top:8px">复制本卷记录</div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== 测光 ===== -->
     <section id="page-meter" class="hidden">
       <div class="tool">
@@ -90,6 +118,8 @@
         <div class="meter-rec">
           <div class="rec-grid" id="sensorRecGrid"><div class="rec-hint">传感器就绪后按实测光线给推荐光圈 / 快门</div></div>
         </div>
+        <div class="btn primary" id="btnLogShot" style="margin-top:10px">记一张到当前胶卷</div>
+        <div class="cam-tip" id="logShotHint">还没有打开的胶卷 —— 先去「胶卷」页开一卷。</div>
         <div class="cam-tip">灰卡校准偏移：<input type="range" id="evOffset" min="-3" max="3" step="0.1" value="0" style="width:58%;vertical-align:middle"> <b id="evOffsetVal">0.0</b> EV
           <div style="margin-top:5px;font-size:11px;opacity:.85">与 Light Meter 对比：把两部设备放同一光源，调此偏移使 EV 一致即可对齐。</div></div>
         <div class="cam-tip" id="sensorTip">读数来自手机硬件 ALS（环境光传感器），与 Light Meter 同源、非摄像头。EV 用入射光公式 <b>log₂(LUX/2.5)</b> 计算（photon 同款数学 + 灰卡偏移）；测光时屏幕尽量朝下 / 遮住传感器，避免屏幕光干扰。</div>
@@ -159,10 +189,15 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
       测光
     </div>
+    <div class="tab" data-page="roll">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M7 6V4h3v2"/></svg>
+      胶卷
+    </div>
   </nav>
 </div>
 
 <script defer src="src/ev-swap.js?v=1"></script>
+<script defer src="src/rollbook.js?v=1"></script>
 <script defer src="src/app.js?v=1"></script>
 </body>
 </html>

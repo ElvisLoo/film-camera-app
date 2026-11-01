@@ -7,7 +7,7 @@
 //
 // 版本：改 BUILD 即可让所有用户换到新缓存，activate 会清掉旧版本。
 
-const BUILD = '20261031-4';
+const BUILD = '20261101-1';
 const CACHE_PREFIX = 'film-app-';
 const CACHE = CACHE_PREFIX + BUILD;
 
@@ -22,7 +22,8 @@ const PRECACHE = [
   './src/app.css',
   './src/app.js',
   // 等效曝光换算器：单独一个文件，漏缓存的话离线时这个区块直接不可用
-  './src/ev-swap.js'
+  './src/ev-swap.js',
+  './src/rollbook.js'
 ];
 
 self.addEventListener('install', function (e) {
