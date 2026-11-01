@@ -272,3 +272,38 @@ test('没有 storage 时纯内存可用', () => {
   assert.strictEqual(s.list().length, 1);
   assert.strictEqual(s.save().ok, true);
 });
+
+// ---- 落盘失败必须让调用方知道 ----
+
+test('配额满时 addShot 返回 persisted:false', () => {
+  const st = {
+    getItem: () => null,
+    setItem: () => { throw new Error('QuotaExceededError'); },
+  };
+  const s = new R.RollStore(st);
+  s.load();
+  const roll = s.startRoll({});
+  const t = Object.assign({}, roll);
+  // startRoll 里 save 也会失败，但卷仍在内存里
+  const r = s.addShot(t.id, { ev: 12 });
+  assert.strictEqual(r.ok, true, '内存里加成功');
+  assert.strictEqual(r.persisted, false, '必须告诉调用方没存上');
+  assert.ok(r.persistError, '应带错误原因');
+});
+
+test('正常存储时 persisted 为 true', () => {
+  const { store } = freshStore();
+  const roll = store.startRoll({});
+  const r = store.addShot(roll.id, { ev: 12 });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.persisted, true);
+  assert.strictEqual(r.persistError, null);
+});
+
+test('没有 storage 时 persisted 为 true（纯内存模式不算失败）', () => {
+  const s = new R.RollStore(null);
+  s.load();
+  const roll = s.startRoll({});
+  const r = s.addShot(roll.id, { ev: 12 });
+  assert.strictEqual(r.persisted, true);
+});

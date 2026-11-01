@@ -561,7 +561,13 @@ function doLogShot() {
     toast(r.reason === 'full' ? '这卷记满了' : '记录失败');
     return;
   }
-  toast('已记第 ' + rollStore.get(roll.id).shots.length + ' 张');
+  // 存不进磁盘时必须说清楚：用户看到"已记录"就以为稳了，
+  // 刷新一次页面全没，会认为是软件丢了数据。
+  if (r.persisted === false) {
+    toast('已记第 ' + rollStore.get(roll.id).shots.length + ' 张，但保存失败（存储空间可能已满）');
+  } else {
+    toast('已记第 ' + rollStore.get(roll.id).shots.length + ' 张');
+  }
   updateLogShotHint();
   renderRolls();
 }

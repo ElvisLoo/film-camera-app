@@ -205,8 +205,11 @@
     if (!s) return { ok: false, reason: 'bad shot' };
     roll.shots.push(s);
     roll.shots.sort(function (a, b) { return a.at - b.at; });
-    this.save();
-    return { ok: true, shot: s };
+    // 把落盘结果一并返回。原来这里丢弃了 save() 的返回值，
+    // localStorage 配额满时数据只存在内存里，用户刷新页面就没了，
+    // 而且全程没有任何提示 —— 对"记录"类功能这是最坏的一种失败。
+    var saved = this.save();
+    return { ok: true, shot: s, persisted: saved.ok, persistError: saved.reason || null };
   };
 
   RollStore.prototype.removeShot = function (rollId, shotId) {
