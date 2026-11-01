@@ -99,8 +99,15 @@
     var evs = roll.shots.map(function (s) { return s.ev; });
     var range = null;
     if (evs.length) {
-      var lo = Math.min.apply(null, evs);
-      var hi = Math.max.apply(null, evs);
+      // 不用 Math.min.apply(null, evs)：参数表过大时会栈溢出。
+      // 现在单卷上限 60 张撑得住，但换个上限就会炸，
+      // 而且报的是 "Maximum call stack size exceeded"，很难联想到这里。
+      var lo = evs[0];
+      var hi = evs[0];
+      for (var i = 1; i < evs.length; i += 1) {
+        if (evs[i] < lo) lo = evs[i];
+        if (evs[i] > hi) hi = evs[i];
+      }
       range = { min: lo, max: hi };
     }
     return {

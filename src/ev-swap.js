@@ -40,6 +40,16 @@
   /** 秒 → 显示文案（和相机刻度一致） */
   function formatShutter(t) {
     if (!(t > 0) || !isFinite(t)) return '—';
+    // 相机上没有比 1/8000 更快的机械快门，也没有比 30 秒更长的档位。
+    // 但长曝光场景（星轨、夜景）确实会用到几分钟，
+    // 所以慢端放宽到 10 分钟才判定「超出可用范围」。
+    var FASTEST = 1 / 8000;
+    var SLOWEST_OK = 600;
+    if (t < FASTEST / 2) return '快于 1/8000';
+    if (t > SLOWEST_OK) {
+      if (t >= 3600) return '超过 1 小时';
+      return '长于 10 分钟';
+    }
     if (t < 1) {
       var d = Math.round(1 / t);
       if (d < 1) d = 1;
